@@ -1,20 +1,27 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
+FROM python:3.9-slim-bullseye
 
-# Set the working directory in the container
-WORKDIR /app
+# set working directory
+WORKDIR ./app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# copy dependencies
+COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# install FreeTDS and dependencies
+RUN apt-get update \
+ && apt-get install --reinstall build-essential -y
 
-# Make port 80 available to the world outside this container
-EXPOSE 80
+# install pyodbc (and, optionally, sqlalchemy)
+RUN python -m pip install --upgrade pip
+RUN pip install --upgrade setuptools
 
-# Define environment variable
-ENV PYTHONUNBUFFERED=1
+# psycopg2 for connection postgres
+RUN apt-get update \
+    && apt-get -y install libpq-dev gcc \
+    && pip install psycopg2==2.9.3
 
-# Run uvicorn server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+# install dependencies
+RUN pip install -r requirements.txt
+
+# copy project
+COPY . /app/

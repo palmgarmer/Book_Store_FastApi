@@ -1,10 +1,36 @@
-version: '3.8'
-
+version: "3.8"
 services:
-  web:
-    build: .
-    ports:
-      - "8000:8000"
+  book_store_fastapi:
+    container_name: book_store_fastapi
+    image: 'book_store_fastapi:${API_VERSION}'
+    restart: unless-stopped
     volumes:
       - .:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: backend.dockerfile
+      args:
+        - PORT=${PORT}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker -b 0.0.0.0:${PORT} --timeout ${WORKER_TIMEOUT}
+    ports:
+      - ${PORT}:${PORT}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.book_store_fastapi.rule=Host(`${HOST}`) && PathPrefix(`${API_PATH}`)
+      - traefik.http.routers.book_store_fastapi.entrypoints=websecure
+      - traefik.http.routers.book_store_fastapi.tls=true
+      - traefik.http.routers.book_store_fastapi.service=book_store_fastapi-service
+      - traefik.http.services.book_store_fastapi-service.loadbalancer.server.port=${PORT}
+    environment:
+      TZ: Asia/Bangkok
+
+networks:
+  default:
+    external: true
+    name: reverse-proxy
